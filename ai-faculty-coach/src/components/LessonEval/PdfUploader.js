@@ -68,42 +68,92 @@ export default function PdfUploader({ onUploadSuccess }) {
     }
   };
 
+  const parsePdfClientSide = async (selectedFile) => {
+    if (typeof window.pdfjsLib === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load PDF library.'));
+        document.head.appendChild(script);
+      });
+    }
+
+    const pdfjsLib = window.pdfjsLib;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const arrayBuffer = await selectedFile.arrayBuffer();
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = '';
+    const numPages = pdf.numPages;
+
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + '\n';
+    }
+
+    return {
+      text: fullText,
+      numPages: numPages,
+      fileName: selectedFile.name,
+      fileSize: selectedFile.size,
+      info: {
+        title: selectedFile.name.replace(/\.[^/.]+$/, ""),
+        author: 'Unknown'
+      }
+    };
+  };
+
   const uploadAndParse = async () => {
     if (!file) return;
 
     setLoading(true);
-    setProgressText('Uploading PDF to server...');
+    setProgressText('Reading PDF file...');
     setErrorMsg('');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Simulate a bit of loading steps for smooth UX
-      setTimeout(() => setProgressText('Extracting and analyzing text...'), 1200);
-
-      const response = await fetch('/api/upload-pdf', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to process PDF file.');
-      }
-
+      // First try client-side parsing for speed and serverless compatibility
+      setProgressText('Parsing PDF text in browser...');
+      const result = await parsePdfClientSide(file);
+      
       addToast('PDF processed successfully!', 'success');
       onUploadSuccess(result);
     } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message || 'An error occurred during text extraction.');
-      addToast('Processing failed.', 'error');
+      console.error('Client-side PDF parse failed, trying backend...', err);
+      setProgressText('Uploading to server...');
+      
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/upload-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to process PDF file.');
+        }
+
+        addToast('PDF processed successfully via backup server!', 'success');
+        onUploadSuccess(result);
+      } catch (backupErr) {
+        console.error(backupErr);
+        setErrorMsg('Failed to process PDF. Make sure it is not password-protected or corrupted.');
+        addToast('Processing failed.', 'error');
+      }
     } finally {
       setLoading(false);
       setProgressText('');
     }
   };
+
 
   return (
     <div className="pdf-uploader-card card animate-fadeIn">
