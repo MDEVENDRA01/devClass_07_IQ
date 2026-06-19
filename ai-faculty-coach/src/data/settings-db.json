@@ -1,0 +1,12 @@
+[
+  {
+    "userId": "u1",
+    "theme": "light",
+    "language": "telugu",
+    "notifications": {
+      "email": true,
+      "digest": true
+    },
+    "updatedAt": "2026-06-14T09:05:17.817Z"
+  }
+]
