@@ -1,0 +1,36 @@
+# dependencies
+ai-faculty-coach/node_modules/
+ai-faculty-coach/.pnp
+ai-faculty-coach/.pnp.*
+ai-faculty-coach/.yarn/*
+
+# testing
+ai-faculty-coach/coverage/
+
+# next.js
+ai-faculty-coach/.next/
+ai-faculty-coach/out/
+
+# production
+ai-faculty-coach/build/
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+ai-faculty-coach/.env*
+
+# vercel
+ai-faculty-coach/.vercel
+
+# typescript
+*.tsbuildinfo
+ai-faculty-coach/next-env.d.ts
