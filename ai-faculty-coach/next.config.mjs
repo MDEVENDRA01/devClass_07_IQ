@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
-  basePath: '/Class_IQ_Faculty_07',
+  basePath: '/devClass_07_IQ',
   images: {
     unoptimized: true,
   },
