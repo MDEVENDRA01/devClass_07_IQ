@@ -73,6 +73,19 @@ export function AppProvider({ children }) {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // If the server doesn't support the API (statically hosted), fallback silently
+          const fallback = localStorage.getItem('fc_settings');
+          let nextSettings = DEFAULT_SETTINGS;
+          if (fallback) {
+            try {
+              nextSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(fallback) };
+            } catch {}
+          }
+          setSettings(nextSettings);
+          applyTheme(nextSettings.theme);
+          return;
+        }
         throw new Error('Unable to load settings from server.');
       }
 
@@ -104,7 +117,12 @@ export function AppProvider({ children }) {
         setSettings(DEFAULT_SETTINGS);
         applyTheme(DEFAULT_SETTINGS.theme);
       }
-      setSettingsError(error.message || 'Failed to load settings.');
+      // If it's a TypeError (e.g. failed to fetch/no server/offline), fallback silently
+      if (error instanceof TypeError) {
+        console.warn('Network error loading settings from server, using localStorage instead:', error);
+      } else {
+        setSettingsError(error.message || 'Failed to load settings.');
+      }
     } finally {
       setSettingsLoading(false);
     }
@@ -170,6 +188,12 @@ export function AppProvider({ children }) {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // If server doesn't support settings API, count localStorage save as success
+          console.warn('Settings API not found (404), saved locally in browser instead.');
+          addToast('Preferences saved successfully!', 'success');
+          return nextSettings;
+        }
         throw new Error('Unable to persist settings to the server.');
       }
 
@@ -183,6 +207,12 @@ export function AppProvider({ children }) {
       addToast('Preferences saved successfully!', 'success');
       return saved;
     } catch (error) {
+      if (error instanceof TypeError) {
+        // Network error (e.g. failed to fetch/offline), count localStorage save as success
+        console.warn('Network error fetching settings API, saved locally in browser:', error);
+        addToast('Preferences saved successfully!', 'success');
+        return nextSettings;
+      }
       setSettingsError(error.message || 'Unable to save settings.');
       addToast('Unable to save settings.', 'error');
       return null;
